@@ -59,15 +59,4 @@ jobs:
       - name: Run alert engine (detect negatives → SMS)
         run: python scripts/alert_engine.py
 
-      # Optional: post a summary to Slack/Discord for ops visibility
-      - name: Notify ops channel on failure
-        if: failure()
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          payload: |
-            {
-              "text": "❌ GridSniper pipeline failed at ${{ github.run_id }} — check logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        continue-on-error: true   # don't fail the job if Slack isn't set up
+     
