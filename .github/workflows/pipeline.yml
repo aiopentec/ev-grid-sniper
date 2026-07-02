@@ -1,0 +1,73 @@
+name: Grid Sniper Pipeline
+
+on:
+  schedule:
+    # Every 5 minutes — GitHub Actions minimum is 5 min
+    - cron: "*/5 * * * *"
+
+  # Allow manual trigger from GitHub UI for testing
+  workflow_dispatch:
+    inputs:
+      force_alert:
+        description: "Force alert even without negative prices (for testing)"
+        required: false
+        default: "false"
+
+jobs:
+  fetch-and-alert:
+    name: Fetch grid data → check prices → send alerts
+    runs-on: ubuntu-latest
+    timeout-minutes: 4   # must finish before next 5-min tick
+
+    env:
+      # ── Supabase ──────────────────────────────────────────────────────────
+      SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+      # ── Twilio ────────────────────────────────────────────────────────────
+      TWILIO_ACCOUNT_SID:   ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_AUTH_TOKEN:    ${{ secrets.TWILIO_AUTH_TOKEN }}
+      TWILIO_PHONE_NUMBER:  ${{ secrets.TWILIO_PHONE_NUMBER }}
+
+      # ── API keys (free tiers) ─────────────────────────────────────────────
+      EIA_API_KEY:          ${{ secrets.EIA_API_KEY }}
+      ELECTRICITYMAP_KEY:   ${{ secrets.ELECTRICITYMAP_KEY }}
+      NREL_API_KEY:         ${{ secrets.NREL_API_KEY }}
+
+      # ── Tunable thresholds ────────────────────────────────────────────────
+      NEGATIVE_THRESHOLD_DOLLARS: "-1.0"   # LMP must be below this to trigger
+      MIN_RENEWABLES_PCT:         "70.0"   # Grid must be >= this % renewable
+      ALERT_COOLDOWN_MINS:        "30"     # Don't re-alert same subscriber < 30 min
+      STATION_RADIUS_MILES:       "3.0"    # Search radius for nearest charger
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch grid data (CAISO, ERCOT, EIA, ElectricityMaps)
+        run: python scripts/fetch_grid.py
+
+      - name: Run alert engine (detect negatives → SMS)
+        run: python scripts/alert_engine.py
+
+      # Optional: post a summary to Slack/Discord for ops visibility
+      - name: Notify ops channel on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "❌ GridSniper pipeline failed at ${{ github.run_id }} — check logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true   # don't fail the job if Slack isn't set up
