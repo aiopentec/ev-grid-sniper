@@ -31,7 +31,7 @@ SUPABASE_KEY     = os.environ["SUPABASE_SERVICE_KEY"]
 TWILIO_SID       = os.environ["TWILIO_ACCOUNT_SID"]
 TWILIO_AUTH      = os.environ["TWILIO_AUTH_TOKEN"]
 TWILIO_FROM      = os.environ["TWILIO_PHONE_NUMBER"]   # e.g. "+15105550100"
-NREL_KEY         = os.environ["NREL_API_KEY"]          # free at developer.nrel.gov
+NREL_KEY         = os.environ["NREL_API_KEY"]          # free at developer.nlr.gov
 
 NEGATIVE_THRESHOLD   = float(os.environ.get("NEGATIVE_THRESHOLD_DOLLARS", "-1.0"))
 MIN_RENEWABLES_PCT   = float(os.environ.get("MIN_RENEWABLES_PCT", "70.0"))
